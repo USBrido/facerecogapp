@@ -8,6 +8,7 @@ import Particles from 'react-particles-js'
 import Clarifai from 'clarifai'
 import Facerecog from '../src/components/facerecog/Facerecog'
 import SignIn from '../src/components/signin/SignIn'
+import Register from '../src/components/register/Register'
 
 const app = new Clarifai.App({
   apiKey: 'e2c6184910e14da5ba9b7ed7ec42a0ad'
@@ -33,10 +34,10 @@ class App extends Component {
       input: '',
       imageURL: '',
       box: {},
-      route: 'signin'
+      route: 'signin',
+      isSignedIn: false
   }
   }
-//       console.log(response.outputs[0].data.regions[0].region_info.bounding_box)
 
 facelocator = (data) => {
   const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box
@@ -52,7 +53,6 @@ facelocator = (data) => {
 }
 
 displayBox = (box) => {
-  console.log(box);
   this.setState({box: box})
 }
 
@@ -70,20 +70,36 @@ onSubmit = () => {
   .catch(err => console.log(err));
 }
 
+onRouteChange = (route) => { 
+  if (route === 'signout') {
+    this.setState({isSignedIn: false})
+  } else if (route === 'home') {
+    this.setState({isSignedIn: true})
+  }
+  this.setState({route: route})
+
+}
 
   render() {
+    const { isSignedIn, imageURL, route, box } = this.state;
     return (
     <div className="App">
 {/* Add bellow is the Particles for the background, inside main div, but before the components per se */}
            <Particles className="particles"
               params={particlesOptions}
             />
-     <Navigation/>
-     <SignIn/>
-     <Logo/>
-     <Rank/>
-     <Imageform onInputChange={this.onInputChange} onSubmit={this.onSubmit}/>
-     <Facerecog box={this.state.box} imageURL={this.state.imageURL}/>
+     <Navigation isSignedIn={isSignedIn} onRouteChange={this.onRouteChange}/>
+     { route === 'home'  
+     ?  <div><Logo/>
+            <Rank/>
+            <Imageform onInputChange={this.onInputChange} onSubmit={this.onSubmit}/>
+            <Facerecog box={box} imageURL={imageURL}/>
+        </div>
+      : (
+        route === 'signin' 
+      ? <SignIn onRouteChange={this.onRouteChange}/>
+      : <Register onRouteChange={this.onRouteChange}/>)
+    }
     </div>
   );}
 }
