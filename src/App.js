@@ -5,14 +5,10 @@ import Logo from '../src/components/logo/Logo'
 import Imageform from '../src/components/imageform/Imageform'
 import Rank from './components/rank/Rank'
 import Particles from 'react-particles-js'
-import Clarifai from 'clarifai'
 import Facerecog from '../src/components/facerecog/Facerecog'
 import SignIn from '../src/components/signin/SignIn'
 import Register from '../src/components/register/Register'
 
-const app = new Clarifai.App({
-  apiKey: 'e2c6184910e14da5ba9b7ed7ec42a0ad'
- });
 
 const particlesOptions = {
   particles: {
@@ -27,6 +23,21 @@ const particlesOptions = {
     }
   }
 
+const initialState = { 
+    input: '',
+    imageURL: '',
+    box: {},
+    route: 'signin',
+    isSignedIn: false,
+    user: {
+      id: '',
+      name: '',
+      email: '',
+      entries: 0,
+      joined: ''
+    }
+}
+
 class App extends Component {
   constructor() {
     super();
@@ -35,9 +46,26 @@ class App extends Component {
       imageURL: '',
       box: {},
       route: 'signin',
-      isSignedIn: false
+      isSignedIn: false,
+      user: {
+        id: '',
+        name: '',
+        email: '',
+        entries: 0,
+        joined: ''
+      }
+    }
   }
-  }
+  
+loadUser = (data) => {
+  this.setState({user: {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    entries: data.entries,
+    joined: data.joined
+  }})
+}
 
 facelocator = (data) => {
   const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box
@@ -62,17 +90,38 @@ onInputChange = (event) => {
 
 onSubmit = () => {
   this.setState({imageURL: this.state.input});
-  app.models
-  .predict(
-    Clarifai.FACE_DETECT_MODEL, 
-  this.state.input)
-  .then(response => this.displayBox(this.facelocator(response)))
+  fetch('http://localhost:3000/imageurl', {
+    method: 'post',
+    headers: {'Content-type': 'application/json' },
+    body: JSON.stringify({
+      input: this.state.input
+    })
+  })
+  .then(response => response.json())
+  .then(response => {
+    if (response) {
+      fetch('http://localhost:3000/image', {
+          method: 'put',
+          headers: {'Content-type': 'application/json' },
+          body: JSON.stringify({
+            id: this.state.user.id
+          })
+      })
+      .then(response => response.json())
+      .then(count => {
+        this.setState(Object.assign(this.state.user, {entries: count}))
+      })
+      .catch(console.log)
+    }
+    this.displayBox(this.facelocator(response))
+
+  })
   .catch(err => console.log(err));
 }
 
 onRouteChange = (route) => { 
   if (route === 'signout') {
-    this.setState({isSignedIn: false})
+    this.setState(initialState)
   } else if (route === 'home') {
     this.setState({isSignedIn: true})
   }
@@ -91,14 +140,14 @@ onRouteChange = (route) => {
      <Navigation isSignedIn={isSignedIn} onRouteChange={this.onRouteChange}/>
      { route === 'home'  
      ?  <div><Logo/>
-            <Rank/>
+            <Rank name={this.state.user.name} entries={this.state.user.entries}/>
             <Imageform onInputChange={this.onInputChange} onSubmit={this.onSubmit}/>
             <Facerecog box={box} imageURL={imageURL}/>
         </div>
       : (
         route === 'signin' 
-      ? <SignIn onRouteChange={this.onRouteChange}/>
-      : <Register onRouteChange={this.onRouteChange}/>)
+      ? <SignIn  loadUser={this.loadUser} onRouteChange={this.onRouteChange}/>
+      : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange}/>)
     }
     </div>
   );}
